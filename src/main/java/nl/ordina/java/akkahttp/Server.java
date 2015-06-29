@@ -49,11 +49,12 @@ public class Server extends HttpApp {
                 handleWith(entityAs(jsonAs(Group.class)),
                     (ctx, group) -> {
                       Group saved = groups.create(group);
-                      return ctx.complete(HttpResponse.create()
-                          .withStatus(Created())
-                          .addHeader(
-                              Location.create(
-                                  Uri.create("http://localhost:8080/groups/" + saved.getUuid()))));
+                      return
+                          ctx.complete(HttpResponse.create()
+                              .withStatus(Created())
+                              .addHeader(
+                                  Location.create(
+                                      Uri.create("http://localhost:8080/groups/" + saved.getUuid()))));
                     }
                 )
             ),
