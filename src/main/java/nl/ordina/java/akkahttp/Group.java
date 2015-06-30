@@ -3,36 +3,38 @@ package nl.ordina.java.akkahttp;
 import java.util.UUID;
 
 public class Group {
-    private UUID uuid;
-    private String name;
+  private UUID uuid;
+  private String name;
 
-    public Group() {}
-    public Group(final UUID uuid, final String name) {
-        this.uuid = uuid;
-        this.name = name;
-    }
+  public Group() {
+  }
 
-    public UUID getUuid() {
-        return uuid;
-    }
+  public Group(final UUID uuid, final String name) {
+    this.uuid = uuid;
+    this.name = name;
+  }
 
-    public void setUuid(UUID uuid) {
-        this.uuid = uuid;
-    }
+  public UUID getUuid() {
+    return uuid;
+  }
 
-    public String getName() {
-        return name;
-    }
+  public void setUuid(UUID uuid) {
+    this.uuid = uuid;
+  }
 
-    public void setName(String name) {
-        this.name = name;
-    }
+  public String getName() {
+    return name;
+  }
 
-    @Override
-    public String toString() {
-        return "Group{" +
-                "uuid=" + uuid +
-                ", name='" + name + '\'' +
-                '}';
-    }
+  public void setName(String name) {
+    this.name = name;
+  }
+
+  @Override
+  public String toString() {
+    return "Group{" +
+        "uuid=" + uuid +
+        ", name='" + name + '\'' +
+        '}';
+  }
 }

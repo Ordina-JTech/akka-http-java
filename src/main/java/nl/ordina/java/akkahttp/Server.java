@@ -8,8 +8,10 @@ import akka.http.javadsl.model.headers.Location;
 import akka.http.javadsl.server.HttpApp;
 import akka.http.javadsl.server.Route;
 import akka.http.javadsl.server.values.PathMatcher;
-import akka.http.scaladsl.model.StatusCodes;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
 
+import javax.inject.Inject;
 import java.io.IOException;
 import java.util.Objects;
 import java.util.UUID;
@@ -21,7 +23,14 @@ import static akka.http.javadsl.server.values.PathMatchers.uuid;
 import static akka.http.scaladsl.model.StatusCodes.*;
 
 public class Server extends HttpApp {
-  private GroupRepo groups = new GroupRepo();
+
+
+  private final GroupRepo groups;
+
+  @Inject
+  public Server(GroupRepo groups) {
+    this.groups = groups;
+  }
 
   @Override
   public Route createRoute() {
@@ -84,7 +93,8 @@ public class Server extends HttpApp {
 
   public static void main(String[] args) throws IOException {
     ActorSystem akkaSystem = ActorSystem.create("akka-http-example");
-    new Server().bindRoute("localhost", 8080, akkaSystem);
+    Injector injector = Guice.createInjector(new AppModule());
+    injector.getInstance(Server.class).bindRoute("localhost", 8080, akkaSystem);
 
     System.out.println("<ENTER> to exit!");
     System.in.read();
