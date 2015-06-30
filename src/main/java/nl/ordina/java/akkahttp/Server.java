@@ -16,7 +16,6 @@ import javax.inject.Inject;
 import java.io.IOException;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 
 import static akka.http.javadsl.marshallers.jackson.Jackson.json;
@@ -30,11 +29,11 @@ import static scala.compat.java8.FutureConverters.*;
 public class Server extends HttpApp {
 
 
-  private final GroupRepo groups;
+  private final GroupRepo repo;
 
   @Inject
-  public Server(GroupRepo groups) {
-    this.groups = groups;
+  public Server(GroupRepo repo) {
+    this.repo = repo;
   }
 
   /* Dezelfde instantie moet gebruikt worden voor het opvragen van een PathMatcher! */
@@ -54,28 +53,28 @@ public class Server extends HttpApp {
         pathSingleSlash().route(
             getFromResource("web/index.html")
         ),
-        pathPrefix("groups").route(
+        pathPrefix("repo").route(
             get(pathEndOrSingleSlash().route(
                 handleWith(ctx -> ctx.completeWith(
                     toScala(
-                        groups.getAll()
+                        repo.getAll()
                             .thenApply(groups -> ctx.completeAs(json(), groups)))))
             )),
             get(path(uuidExtractor).route(
                 handleWith(uuidExtractor,
-                    (ctx, uuid) -> ctx.completeAs(json(), groups.get(uuid))
+                    (ctx, uuid) -> ctx.completeAs(json(), repo.get(uuid))
                 )
             )),
             post(
                 handleWith(entityAs(jsonAs(Group.class)),
                     (ctx, group) -> {
-                      Group saved = groups.create(group);
+                      Group saved = repo.create(group);
                       return
                           ctx.complete(HttpResponse.create()
                               .withStatus(Created())
                               .addHeader(
                                   Location.create(
-                                      Uri.create("http://localhost:8080/groups/" + saved.getUuid()))));
+                                      Uri.create("http://localhost:8080/repo/" + saved.getUuid()))));
                     }
                 )
             ),
@@ -85,7 +84,7 @@ public class Server extends HttpApp {
                       if (!Objects.equals(group.getUuid(), uuid))
                         return ctx.completeWithStatus(BadRequest());
                       else {
-                        groups.update(group);
+                        repo.update(group);
                         return ctx.completeWithStatus(OK());
                       }
                     }
@@ -94,7 +93,7 @@ public class Server extends HttpApp {
             put(path(uuidExtractor).route(
                 handleWith(uuidExtractor,
                     (ctx, uuid) -> {
-                      groups.delete(uuid);
+                      repo.delete(uuid);
                       return ctx.completeWithStatus(OK());
                     }
                 )
