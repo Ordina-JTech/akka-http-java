@@ -2,7 +2,11 @@ package nl.ordina.java.akkahttp;
 
 import java.util.Collection;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Future;
+
+import static java.util.concurrent.CompletableFuture.completedFuture;
 
 public class GroupRepo {
   private final ConcurrentHashMap<UUID, Group> groups = new ConcurrentHashMap<>();
@@ -17,7 +21,6 @@ public class GroupRepo {
   }
 
   public Group create(Group group) {
-    System.out.println("OPSLAAN VAN EEN GROUP");
     UUID uuid = UUID.randomUUID();
     Group groupWithId = new Group(uuid, group.getName());
     groups.put(uuid, groupWithId);
@@ -28,8 +31,8 @@ public class GroupRepo {
     groups.put(group.getUuid(), group);
   }
 
-  public Collection<Group> getAll() {
-    return groups.values();
+  public CompletableFuture<Collection<Group>> getAll() {
+    return completedFuture(groups.values());
   }
 
   public void delete(UUID uuid) {
