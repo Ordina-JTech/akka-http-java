@@ -14,7 +14,6 @@ import com.google.inject.Injector;
 
 import javax.inject.Inject;
 import java.io.IOException;
-import java.util.Objects;
 import java.util.UUID;
 import java.util.function.BiFunction;
 
@@ -24,7 +23,7 @@ import static akka.http.javadsl.model.HttpResponse.create;
 import static akka.http.javadsl.server.RequestVals.entityAs;
 import static akka.http.javadsl.server.values.PathMatchers.uuid;
 import static akka.http.scaladsl.model.StatusCodes.*;
-import static scala.compat.java8.FutureConverters.*;
+import static scala.compat.java8.FutureConverters.toScala;
 
 public class Server extends HttpApp {
 
@@ -37,7 +36,7 @@ public class Server extends HttpApp {
   }
 
   /* Dezelfde instantie moet gebruikt worden voor het opvragen van een PathMatcher! */
-  private final static PathMatcher<UUID> uuidExtractor = uuid();
+  private final static PathMatcher<UUID> uuid = uuid();
 
   BiFunction<RequestContext, Object, RouteResult> b = (RequestContext ctx, Object asMarshalled) -> ctx.completeAs(json(), asMarshalled);
 
@@ -53,53 +52,86 @@ public class Server extends HttpApp {
         pathSingleSlash().route(
             getFromResource("web/index.html")
         ),
-        pathPrefix("repo").route(
-            get(pathEndOrSingleSlash().route(
-                handleWith(ctx -> ctx.completeWith(
-                    toScala(
-                        repo.getAll()
-                            .thenApply(groups -> ctx.completeAs(json(), groups)))))
-            )),
-            get(path(uuidExtractor).route(
-                handleWith(uuidExtractor,
-                    (ctx, uuid) -> ctx.completeAs(json(), repo.get(uuid))
-                )
-            )),
-            post(
-                handleWith(entityAs(jsonAs(Group.class)),
-                    (ctx, group) -> {
-                      Group saved = repo.create(group);
-                      return
-                          ctx.complete(HttpResponse.create()
-                              .withStatus(Created())
-                              .addHeader(
-                                  Location.create(
-                                      Uri.create("http://localhost:8080/repo/" + saved.getUuid()))));
-                    }
-                )
-            ),
-            put(path(uuidExtractor).route(
-                handleWith(uuidExtractor, entityAs(jsonAs(Group.class)),
-                    (ctx, uuid, group) -> {
-                      if (!Objects.equals(group.getUuid(), uuid))
-                        return ctx.completeWithStatus(BadRequest());
-                      else {
-                        repo.update(group);
-                        return ctx.completeWithStatus(OK());
-                      }
-                    }
-                )
-            )),
-            put(path(uuidExtractor).route(
-                handleWith(uuidExtractor,
-                    (ctx, uuid) -> {
-                      repo.delete(uuid);
-                      return ctx.completeWithStatus(OK());
-                    }
-                )
-            ))
+        pathPrefix("groups").route(
+            getAll(),
+            get(path(uuid).route(get())),
+            put(path(uuid).route(updateGroup())),
+            put(path(uuid).route(deleteGroup())),
+            post(saveGroup())
         )
     );
+  }
+
+  private Route getAll() {
+    return get(pathEndOrSingleSlash().route(
+        handleWith(ctx -> ctx.completeWith(
+            toScala(
+                repo.getAll()
+                    .thenApplyAsync(groups -> ctx.completeAs(json(), groups)))))
+    ));
+  }
+
+  private Route get() {
+    return handleWith(uuid,
+        (ctx, uuid) ->
+            ctx.completeWith(
+                toScala(
+                    repo.get(uuid)
+                        .thenApplyAsync(g -> ctx.completeAs(json(), g))))
+
+    );
+  }
+
+  private Route deleteGroup() {
+    return handleWith(uuid,
+        (ctx, uuid) ->
+            ctx.completeWith(
+                toScala(
+                    repo.delete(uuid)
+                        .supplyAsync(() -> completeWithOk(ctx))))
+    );
+  }
+
+  private Route updateGroup() {
+    return handleWith(uuid, entityAs(jsonAs(Group.class)),
+        (ctx, uuid, group) ->
+            ctx.completeWith(
+                toScala(
+                    repo.update(new Group(uuid, group.getName()))
+                        .thenApplyAsync(g -> completeWithOk(ctx))
+                )
+            )
+    );
+  }
+
+
+  private Route saveGroup() {
+    return handleWith(entityAs(jsonAs(Group.class)),
+        (RequestContext ctx, Group group) ->
+            ctx.completeWith(
+                toScala(repo.create(group)
+                        .thenApplyAsync(g -> created(createHeader(ctx, g)))
+                        .thenApplyAsync(ctx::complete)
+                )
+            )
+    );
+  }
+
+  private RouteResult completeWithOk(RequestContext ctx) {
+    return ctx.complete(HttpResponse.create().withStatus(OK()));
+  }
+
+  private HttpResponse created(Location header) {
+    return
+        HttpResponse
+            .create()
+            .withStatus(Created())
+            .addHeader(header);
+  }
+
+  private Location createHeader(RequestContext ctx, Group g) {
+    Uri uri = ctx.request().getUri().addPathSegment(g.getUuid().toString());
+    return Location.create(uri);
   }
 
   public static void main(String[] args) throws IOException {

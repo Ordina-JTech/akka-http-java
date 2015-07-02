@@ -16,26 +16,28 @@ public class GroupRepo {
         new Group(UUID.fromString("d0926864-e5e7-4bca-8067-d05eb7c725e9"), "BLa bla"));
   }
 
-  public Group get(UUID uuid) {
-    return groups.get(uuid);
+  public CompletableFuture<Group> get(UUID uuid) {
+    return completedFuture(groups.get(uuid));
   }
 
-  public Group create(Group group) {
+  public CompletableFuture<Group> create(Group group) {
     UUID uuid = UUID.randomUUID();
     Group groupWithId = new Group(uuid, group.getName());
     groups.put(uuid, groupWithId);
-    return groupWithId;
+    return completedFuture(groupWithId);
   }
 
-  public void update(Group group) {
+  public CompletableFuture<Group> update(Group group) {
     groups.put(group.getUuid(), group);
+    return completedFuture(group);
   }
 
   public CompletableFuture<Collection<Group>> getAll() {
     return completedFuture(groups.values());
   }
 
-  public void delete(UUID uuid) {
+  public CompletableFuture<Void> delete(UUID uuid) {
     groups.remove(uuid);
+    return completedFuture(null);
   }
 }
