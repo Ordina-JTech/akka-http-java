@@ -1,12 +1,15 @@
 package nl.ordina.java.akkahttp;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 
 import static java.util.concurrent.CompletableFuture.completedFuture;
+import static java.util.stream.Collectors.toList;
 
 public class GroupRepo {
   private final ConcurrentHashMap<UUID, Group> groups = new ConcurrentHashMap<>();
@@ -32,8 +35,9 @@ public class GroupRepo {
     return completedFuture(group);
   }
 
-  public CompletableFuture<Collection<Group>> getAll() {
-    return completedFuture(groups.values());
+  public CompletableFuture<Collection<Group>> getAll(Integer page, Integer pageSize) {
+    List<Group> groupPage = groups.values().stream().skip((page - 1) * pageSize).limit(pageSize).collect(toList());
+    return completedFuture(groupPage);
   }
 
   public CompletableFuture<Void> delete(UUID uuid) {

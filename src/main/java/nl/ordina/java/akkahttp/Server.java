@@ -4,13 +4,13 @@ import akka.actor.ActorSystem;
 import akka.http.javadsl.model.HttpResponse;
 import akka.http.javadsl.model.Uri;
 import akka.http.javadsl.model.headers.Location;
-import akka.http.javadsl.server.HttpApp;
-import akka.http.javadsl.server.RequestContext;
-import akka.http.javadsl.server.Route;
-import akka.http.javadsl.server.RouteResult;
+import akka.http.javadsl.server.*;
+import akka.http.javadsl.server.values.Parameter;
+import akka.http.javadsl.server.values.Parameters;
 import akka.http.javadsl.server.values.PathMatcher;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import scala.collection.Seq;
 
 import javax.inject.Inject;
 import java.io.IOException;
@@ -21,6 +21,7 @@ import static akka.http.javadsl.marshallers.jackson.Jackson.json;
 import static akka.http.javadsl.marshallers.jackson.Jackson.jsonAs;
 import static akka.http.javadsl.model.HttpResponse.create;
 import static akka.http.javadsl.server.RequestVals.entityAs;
+import static akka.http.javadsl.server.values.Parameters.intValue;
 import static akka.http.javadsl.server.values.PathMatchers.uuid;
 import static akka.http.scaladsl.model.StatusCodes.*;
 import static scala.compat.java8.FutureConverters.toScala;
@@ -36,7 +37,7 @@ public class Server extends HttpApp {
   }
 
   /* Dezelfde instantie moet gebruikt worden voor het opvragen van een PathMatcher! */
-  private final static PathMatcher<UUID> uuid = uuid();
+  PathMatcher<UUID> uuid = uuid();
 
   BiFunction<RequestContext, Object, RouteResult> b = (RequestContext ctx, Object asMarshalled) -> ctx.completeAs(json(), asMarshalled);
 
@@ -64,11 +65,22 @@ public class Server extends HttpApp {
 
   private Route getAll() {
     return get(pathEndOrSingleSlash().route(
-        handleWith(ctx -> ctx.completeWith(
-            toScala(
-                repo.getAll()
-                    .thenApplyAsync(groups -> ctx.completeAs(json(), groups)))))
+        getFirst()
     ));
+  }
+
+  private Route getFirst() {
+    RequestVal<Integer> pageE = intValue("page").withDefault(1);
+    RequestVal<Integer> pageSizeE = intValue("pageSize").withDefault(10);
+
+    return extractHere(pageE, pageSizeE).route(
+        handleWith(pageE, pageSizeE,
+            (ctx, page, pageSize) -> ctx.completeWith(
+                toScala(
+                    repo.getAll(page, pageSize)
+                        .thenApplyAsync(groups -> ctx.completeAs(json(), groups)))
+            ))
+    );
   }
 
   private Route get() {
